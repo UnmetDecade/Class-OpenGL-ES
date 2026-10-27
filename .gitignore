@@ -1,0 +1,32 @@
+# Build outputs
+/build/
+/build-*/
+/cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+
+# Local dependency checkouts (CMake FetchContent downloads these)
+/glfw/
+/glm/
+/glad/
+/OpenGL-Registry/
+
+# macOS / editors
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# Compiled objects and libraries
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Keep Wavefront OBJ models (the .obj extension collides with Windows objects)
+!assets/models/*.obj
