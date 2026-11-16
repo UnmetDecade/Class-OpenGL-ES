@@ -1,0 +1,9 @@
+version: 2
+# GLFW and glm are pinned by tag in CMakeLists.txt FetchContent blocks.
+# Dependabot has no CMake/FetchContent ecosystem, so those bumps stay manual.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

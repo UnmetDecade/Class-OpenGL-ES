@@ -1,0 +1,47 @@
+name: Feature request
+description: Propose a new example, effect or engine capability
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The engine keeps examples small and focused: one capability per
+        example, built on the existing RAII wrappers and `GLCall` checks.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API or example you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - New example
+        - New engine module
+        - Improvement to an existing module
+        - Build / tooling / documentation
+    validations:
+      required: true
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked that this is not already implemented in an existing example.
+          required: true

@@ -9,15 +9,9 @@
 
 #include "engine/Renderer/Buffer.h"
 #include "engine/Renderer/VertexArray.h"
+#include "engine/Renderer/Vertex.h"
 
 class Shader;
-
-struct Vertex
-{
-    glm::vec3 position{0.0f, 0.0f, 0.0f};
-    glm::vec3 normal{0.0f, 0.0f, 0.0f};
-    glm::vec2 texCoord{0.0f, 0.0f};
-};
 
 // Owns one VAO/VBO/EBO triple for a triangle mesh.
 class Mesh

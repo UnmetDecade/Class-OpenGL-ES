@@ -2,6 +2,8 @@
 
 <div align="left"><a href="README.md">English</a> · <b>简体中文</b></div>
 
+[![CI](https://github.com/UnmetDecade/Class-OpenGL-ES/actions/workflows/ci.yml/badge.svg)](https://github.com/UnmetDecade/Class-OpenGL-ES/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/UnmetDecade/Class-OpenGL-ES/actions/workflows/codeql.yml/badge.svg)](https://github.com/UnmetDecade/Class-OpenGL-ES/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 一个 C++17 / OpenGL ES 3.0（GLSL ES 3.00）的渲染引擎封装骨架，由
@@ -65,7 +67,7 @@
 | 后端 | `RendererAPI.h`、`OpenGLRendererAPI.*`、`NullRendererAPI.*` | OpenGL 实际后端 + Null 无头后端 |
 | 光照/材质 | `Lighting.h` | Blinn-Phong、Material、方向光、点光 |
 | PBR 材质 | `MaterialPBR.h` | albedo / metallic / roughness / AO，`Apply(Shader&)` |
-| 网格/模型 | `Mesh.*`、`Model.*` | 索引网格、Wavefront OBJ 导入、UV 球体生成 |
+| 网格/模型 | `Mesh.*`、`Model.*`、`ObjLoader.*`、`Vertex.h` | 索引网格、无 GL 依赖的 Wavefront OBJ 解析、UV 球体生成 |
 | 文字 | `TextRenderer.*` | stb_easy_font 屏幕空间 ASCII 叠加层 |
 | Shader 库 | `ShaderLibrary.*` | 单文件 `#type vertex` / `#type fragment` 管理 |
 | 离屏渲染 | `Framebuffer.*` | 颜色附件 + 深度/模板 renderbuffer，支持 RGB8 / sRGB8 / RGBA16F |
@@ -97,7 +99,10 @@ Class-OpenGL-ES/
 │   └── stb/               # stb_image / stb_easy_font
 ├── glfw/                  # 可选：本地 GLFW 源码（已 gitignore）
 ├── glm/                   # 可选：本地 glm 源码（已 gitignore）
-└── docs/images/           # README 截图
+├── tests/                 # 无窗口单元测试（CTest）
+├── scripts/               # 覆盖率与文档链接检查
+├── docs/                  # 截图与 GitHub Pages 落地页
+└── .github/               # CI、CodeQL、Dependabot、issue 与 PR 模板
 ```
 
 ## 构建
@@ -118,6 +123,7 @@ sudo apt install build-essential cmake \
 cd Class-OpenGL-ES
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j
+ctest --test-dir build --output-on-failure
 ```
 
 Release 构建（关闭 GLCall 检查）：
@@ -128,6 +134,9 @@ cmake --build build-release -j
 ```
 
 资源目录通过编译定义 `ASSET_DIR` 指向项目的 `assets/`，无需复制可执行文件。
+
+项目在 macOS 上也能编译并运行无窗口单元测试；但 GLFW 在 macOS 上无法创建
+OpenGL ES 上下文，示例需要在带 EGL 的 Linux 上运行。
 
 ### 运行
 
@@ -230,7 +239,8 @@ DISPLAY=:0 ./build/09_shadow
 
 ### 模型导入
 
-`Model` 解析 Wavefront OBJ 的 `v` / `vt` / `vn` / `f`：
+`ObjLoader` 解析 Wavefront OBJ 的 `v` / `vt` / `vn` / `f`，不依赖 OpenGL，
+因此导入逻辑可以做无窗口测试；`Model` 通过它加载：
 
 - 多边形按扇形三角化
 - 支持负索引
@@ -352,30 +362,25 @@ renderbuffer；颜色格式按参数选择 `GL_RGB8`、`GL_SRGB8` 或 `GL_RGBA16
 - [x] 场景 FBO / ping-pong FBO / 阴影 FBO 尺寸变化时正确重建（`Resize` 回调）
 - [x] 多后端切换会记录旧后端统计并重新初始化新后端
 - [x] Debug 全量构建（`-Wall -Wextra`）引擎与示例零警告
-- [x] 示例 01–13 在 macOS 上全部启动、运行、键位响应正常，无 GL 错误、无 "Uniform not found"
+- [x] 示例 01–13 在 Ubuntu 22.04 + Mesa llvmpipe（OpenGL ES 3.2）上全部构建、启动，无 GL 错误、无 "Uniform not found"
 - [x] 08/09/10 补最终输出 pass 后观感恢复；11/12 代码零改动、行为不变
-- [x] 13 的薄壳花瓣、阴影、换色与转台在 Apple M4 上运行正常
+- [x] 13 的薄壳花瓣、阴影、换色与转台在 Mesa llvmpipe 下运行正常
+- [x] `camera_tests` 与 `obj_loader_tests` 在 Linux 与 macOS 上通过 CTest，且不创建 GL 上下文
 
 ## 验证记录
 
-- **macOS（Apple M4，OpenGL 4.1 Metal，MSAA 4x）**：最终验收中逐项运行 01–13。
-  01/02/04 画面与贴图正常；03 立方体旋转与相机漫游正常；05 光照/材质/点光与阶段 11 前一致；
-  06 文字叠加层显示 FPS/分辨率/MSAA/后端；07 用模拟按键验证 `OpenGL → Null → OpenGL` 切换与统计；
-  08 的 1–6 效果切换全部生效，默认直通画面亮度正常；09 的 `[` `]` bias 与 F6 PCF 生效，
-  黑白棋盘对比度恢复；10 天空盒无接缝、反射/折射与后处理键位正常，天空亮度与灰蓝/暖色
-  层次恢复（与阶段 10 验收截图一致）；11 的 F8 HDR/LDR、F9 Bloom 与 1–6 后处理正常；
-  12 的球阵、多光源、L/F6/F7/F8/F9 全部正常；13 的玫瑰渲染、1–4 配色切换与
-  SPACE 转台正常。运行期间无 `GL_INVALID_*` 中断，无 "Uniform not found" 警告。
-- **Ubuntu 22.04.5（GCC 11.4.0，Xwayland + Mesa 23.2.1 llvmpipe / LLVM 15.0.7，
-  OpenGL 4.5 Core，MSAA 4x）**：最终验收实机复跑，01–12 全部 Debug 构建通过并逐个启动
-  运行，日志无 `GL_INVALID_*` 中断、无 "Uniform not found"；01–07 沿用前序阶段的画面
+- **Ubuntu 22.04.5（GCC 11.4.0，ThinkCentre，Xwayland + Mesa 23.2.1 llvmpipe / LLVM 15.0.7，
+  `GL_VERSION = OpenGL ES 3.2 Mesa 23.2.1`，EGL 配置 MSAA 4x）**：01–13 全部 Debug 构建通过并
+  逐个启动运行，日志无 `GL_INVALID_*` 中断、无 "Uniform not found"；01–07 沿用前序阶段的画面
   验证，08–12 本次逐一截图核对：08 默认直通立方体、09 黑白棋盘高对比 + 投影、10 天空盒
-  + 环面环境反射、11 HDR/Bloom、12 PBR 金属/粗糙度球阵与多光源，结果与 macOS 一致。
-  键位路径已在 macOS 逐项验证；Ubuntu 未安装 xdotool，未做按键注入。
+  + 环面环境反射、11 HDR/Bloom、12 PBR 金属/粗糙度球阵与多光源，结果与参考渲染一致。
+  Ubuntu 未安装 xdotool，未做按键注入，键位路径为交互验证。
   构建中发现 GCC 拒绝与类型同名的成员（`EffectEntry::Shader`），已将成员重命名为
-  `Program`（纯重命名，行为不变），macOS 侧改后重新构建并复跑 08/10/11/12 正常。
-  注：GLFW 3.4 在 Wayland 会话下默认创建原生 Wayland 窗口，截图时以
-  `WAYLAND_DISPLAY=wayland-missing` 强制 X11/Xwayland 以便 `xwininfo` / `xwd` 定位窗口。
+  `Program`（纯重命名，行为不变）。注：GLFW 3.4 在 Wayland 会话下默认创建原生 Wayland
+  窗口，截图时以 `WAYLAND_DISPLAY=wayland-missing` 强制 X11/Xwayland 以便 `xwininfo` /
+  `xwd` 定位窗口。
+- **无窗口测试**：`camera_tests`（8 个用例）与 `obj_loader_tests`（20 个用例）在
+  Ubuntu 22.04 与 macOS 上通过 `ctest`，不创建 GL 上下文。
 
 ## 明确未实现
 
@@ -403,6 +408,12 @@ renderbuffer；颜色格式按参数选择 `GL_RGB8`、`GL_SRGB8` 或 `GL_RGBA16
 ## 第三方组件
 
 项目使用 GLFW、glm、glad、stb 等第三方库；各库许可证见其源码目录或文件头。
+
+## 参与贡献
+
+欢迎参与贡献。构建、测试与代码约定见 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)；
+安全漏洞请按 [SECURITY.zh-CN.md](SECURITY.zh-CN.md) 私下上报；面向用户的改动记录在
+[CHANGELOG.zh-CN.md](CHANGELOG.zh-CN.md)。
 
 ## License
 

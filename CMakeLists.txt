@@ -9,6 +9,25 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
+include(CTest)
+
+option(ENGINE_WARNINGS_AS_ERRORS "Treat engine compiler warnings as errors" OFF)
+option(ENGINE_ENABLE_COVERAGE "Instrument unit tests for gcov coverage" OFF)
+
+function(engine_enable_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+        if(ENGINE_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra)
+        if(ENGINE_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+endfunction()
+
 # ---------------------------------------------------------------------------
 # Dependencies: use the vendored copies when present, otherwise fetch them.
 # ---------------------------------------------------------------------------
@@ -71,16 +90,17 @@ add_library(engine STATIC
     engine/Renderer/NullRendererAPI.cpp
     engine/Renderer/Mesh.cpp
     engine/Renderer/Model.cpp
+    engine/Renderer/ObjLoader.cpp
     engine/Renderer/TextRenderer.cpp
     engine/Renderer/Framebuffer.cpp
     engine/Renderer/PostProcess.cpp
     engine/Renderer/ShadowMap.cpp
     engine/Renderer/Cubemap.cpp
 )
-target_include_directories(engine
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
-)
+target_include_directories(engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# Vendored stb headers define static helpers we do not call; SYSTEM keeps
+# their warnings out of the engine's -Wall -Wextra -Werror build.
+target_include_directories(engine SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb)
 target_link_libraries(engine PUBLIC glad glfw glm::glm)
 target_compile_definitions(engine
     PUBLIC $<$<CONFIG:Debug>:DEBUG>
@@ -128,3 +148,38 @@ target_link_libraries(12_pbr PRIVATE engine)
 
 add_executable(13_rose engine/examples/13_rose/main.cpp)
 target_link_libraries(13_rose PRIVATE engine)
+
+# ---------------------------------------------------------------------------
+# warnings
+# ---------------------------------------------------------------------------
+engine_enable_warnings(engine)
+
+foreach(example
+    01_triangle 02_texture 03_cube 04_shader_library 05_lighting 06_text
+    07_backend_switch 08_postprocess 09_shadow 10_skybox 11_hdr 12_pbr 13_rose)
+    engine_enable_warnings(${example})
+endforeach()
+
+# ---------------------------------------------------------------------------
+# tests (headless: no OpenGL ES context required)
+# ---------------------------------------------------------------------------
+if(BUILD_TESTING)
+    add_executable(camera_tests tests/CameraTests.cpp engine/Renderer/Camera.cpp)
+    target_include_directories(camera_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(camera_tests PRIVATE glm::glm)
+    engine_enable_warnings(camera_tests)
+    add_test(NAME camera_tests COMMAND camera_tests)
+
+    add_executable(obj_loader_tests tests/ObjLoaderTests.cpp engine/Renderer/ObjLoader.cpp)
+    target_include_directories(obj_loader_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(obj_loader_tests PRIVATE glm::glm)
+    engine_enable_warnings(obj_loader_tests)
+    add_test(NAME obj_loader_tests COMMAND obj_loader_tests)
+
+    if(ENGINE_ENABLE_COVERAGE)
+        foreach(test_target camera_tests obj_loader_tests)
+            target_compile_options(${test_target} PRIVATE --coverage -O0 -g)
+            target_link_options(${test_target} PRIVATE --coverage)
+        endforeach()
+    endif()
+endif()

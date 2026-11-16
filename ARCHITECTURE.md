@@ -1,31 +1,39 @@
-# 架构约定
+# Architecture Conventions
 
-> 本文件是项目的长期约定，后续阶段不得违反。
+<div align="left"><b>English</b> · <a href="ARCHITECTURE.zh-CN.md">简体中文</a></div>
 
-## 1. 硬性约束
+> This file records the project's long-term conventions. Later phases must not violate them.
 
-| 约束 | 说明 |
+## 1. Hard constraints
+
+| Constraint | Rule |
 |---|---|
-| 标准 | C++17，OpenGL ES 3.0（GLSL ES 3.00），GLFW3，glad2 |
-| 资源管理 | 所有 GL 对象（program/buffer/VAO/texture）一律 RAII |
-| 拷贝语义 | 禁用拷贝构造和拷贝赋值，允许移动构造和移动赋值 |
-| 错误检查 | 所有 GL 调用必须经 `GLCall` 宏包裹，出错即打印调用位置并中断 |
-| 构建 | CMake ≥ 3.16，GLFW/glm 使用仓库内源码，glad2 生成的 GLES2 loader 放入 `third_party/glad/` |
-| 目录结构 | 严格按下方结构组织，不要乱放文件 |
-| 范围控制 | 每个阶段只做该阶段要求的功能，不要顺手实现额外功能 |
+| Standard | C++17, OpenGL ES 3.0 (GLSL ES 3.00), GLFW3, glad2 |
+| Resource management | Every GL object (program / buffer / VAO / texture) is owned by RAII |
+| Copy semantics | Copy construction and copy assignment are deleted; move construction and move assignment are allowed |
+| Error checking | Every GL call goes through the `GLCall` macro, which prints the call site and breaks on failure |
+| Build | CMake ≥ 3.16, GLFW/glm from the repository or FetchContent, glad2-generated GLES2 loader vendored in `third_party/glad/` |
+| Directory layout | Follow the structure below strictly; do not scatter files |
+| Scope control | Each phase implements only what that phase requires; do not add unrelated features |
 
-## 3. 各模块接口约定
+## 2. Module interfaces
 
-- `Window`：构造（宽/高/标题/可选 vsync），`ShouldClose()`、`SwapBuffers()`、`PollEvents()`、回调设置（窗口尺寸变化、键盘、鼠标）。
-- `Shader`：
-  - 构造：`Shader(const std::string& vertPath, const std::string& fragPath)` 与 `Shader(const char* vertSrc, const char* fragSrc)`
-  - 编译或链接失败 → 抛 `std::runtime_error`，消息含完整 info log 和失败 stage（VERTEX/FRAGMENT/LINK）
-  - `Bind()` / `Unbind()`（即 glUseProgram(0)）
-  - `SetUniform(const std::string& name, ...)`：支持 int / float / glm::vec2/3/4 / glm::mat3/4，mat4 需转置参数 `bool transpose = false`
-  - 内部缓存 uniform location，避免重复 glGetUniformLocation
-- `Buffer`（VBO）：构造即 `glGenBuffers` + `glBufferData`；`SetData(const void* data, size_t size, GLenum usage)`；`Bind/Unbind`；模板方法 `SetLayout` 不放在此类（布局归 VAO 管）。
-- `IndexBuffer`（EBO）：同上，`GetCount()`。
-- `VertexArray`：`AddVertexBuffer(const VertexBuffer&, 布局描述)`，布局描述用 `struct VertexAttribute{int size; GLenum type; bool normalized; size_t stride; size_t offset;}` 数组，内部完成 glVertexAttribPointer + glEnableVertexAttribArray 并维护 index。
-- `Texture`：构造（文件路径，自动判断是否有 alpha 选 GL_RGBA/GL_RGB），stb_image 加载；`Bind(unsigned int slot = 0)`，析构 glDeleteTextures；翻转 Y（stbi_set_flip_vertically_on_load）。
-- `Camera`：透视相机，`GetViewMatrix()` / `GetProjectionMatrix(float aspect)` / `ProcessKeyboard(dt, dir)` / `ProcessMouse(dx, dy)`，yaw/pitch 欧拉角实现。
-- `Renderer`：静态方法 `Clear(float r, float g, float b, float a)`、`Draw(const VertexArray&, const IndexBuffer&, const Shader&)`、`DrawArrays(...)`。
+- `Window`: constructor (width / height / title / optional vsync), `ShouldClose()`, `SwapBuffers()`, `PollEvents()`, and callbacks for window resize, keyboard and mouse.
+- `Shader`:
+  - Constructors: `Shader(const std::string& vertPath, const std::string& fragPath)` and `Shader(const char* vertSrc, const char* fragSrc)`
+  - Compile or link failure throws `std::runtime_error` with the complete info log and the failing stage (VERTEX / FRAGMENT / LINK)
+  - `Bind()` / `Unbind()` (that is, `glUseProgram(0)`)
+  - `SetUniform(const std::string& name, ...)` supports int / float / glm::vec2/3/4 / glm::mat3/4; mat4 takes a `bool transpose = false` argument
+  - Uniform locations are cached internally to avoid repeated `glGetUniformLocation` calls
+- `Buffer` (VBO): the constructor calls `glGenBuffers` + `glBufferData`; `SetData(const void* data, size_t size, GLenum usage)`; `Bind/Unbind`. Layout is owned by the VAO, not by this class.
+- `IndexBuffer` (EBO): same shape as `Buffer`, plus `GetCount()`.
+- `VertexArray`: `AddVertexBuffer(const VertexBuffer&, layout)` where the layout is an array of `struct VertexAttribute{int size; GLenum type; bool normalized; size_t stride; size_t offset;}`. It issues `glVertexAttribPointer` + `glEnableVertexAttribArray` and keeps the attribute index.
+- `Texture`: constructor from a file path, choosing `GL_RGBA` / `GL_RGB` automatically based on the alpha channel; loaded with stb_image. `Bind(unsigned int slot = 0)`, `glDeleteTextures` in the destructor, Y flipped via `stbi_set_flip_vertically_on_load`.
+- `Camera`: perspective camera with `GetViewMatrix()` / `GetProjectionMatrix(float aspect)` / `ProcessKeyboard(dt, dir)` / `ProcessMouse(dx, dy)`, implemented with yaw/pitch Euler angles.
+- `Renderer`: static `Clear(float r, float g, float b, float a)`, `Draw(const VertexArray&, const IndexBuffer&, const Shader&)`, `DrawArrays(...)`.
+
+## 3. Testability
+
+- Parsing and math code must stay free of OpenGL ES headers so it can be unit-tested headless.
+- `ObjLoader` owns OBJ parsing and returns plain `Vertex` data; `Model` only uploads that data into GPU meshes.
+- `tests/` builds without a window or GL context and runs under CTest.

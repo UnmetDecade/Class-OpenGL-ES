@@ -2,6 +2,8 @@
 
 <div align="left"><b>English</b> · <a href="README.zh-CN.md">简体中文</a></div>
 
+[![CI](https://github.com/UnmetDecade/Class-OpenGL-ES/actions/workflows/ci.yml/badge.svg)](https://github.com/UnmetDecade/Class-OpenGL-ES/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/UnmetDecade/Class-OpenGL-ES/actions/workflows/codeql.yml/badge.svg)](https://github.com/UnmetDecade/Class-OpenGL-ES/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A C++17 / OpenGL ES 3.0 (GLSL ES 3.00) rendering-engine wrapper skeleton, ported from
@@ -68,7 +70,7 @@ builds prints `file:line call error-code` and aborts the moment an error occurs.
 | Backends | `RendererAPI.h`, `OpenGLRendererAPI.*`, `NullRendererAPI.*` | Real OpenGL backend + headless Null backend |
 | Lighting/materials | `Lighting.h` | Blinn-Phong, Material, directional light, point light |
 | PBR material | `MaterialPBR.h` | albedo / metallic / roughness / AO, `Apply(Shader&)` |
-| Mesh/model | `Mesh.*`, `Model.*` | Indexed meshes, Wavefront OBJ import, UV sphere generation |
+| Mesh/model | `Mesh.*`, `Model.*`, `ObjLoader.*`, `Vertex.h` | Indexed meshes, headless Wavefront OBJ parsing, UV sphere generation |
 | Text | `TextRenderer.*` | stb_easy_font screen-space ASCII overlay |
 | Shader library | `ShaderLibrary.*` | Single-file `#type vertex` / `#type fragment` management |
 | Offscreen rendering | `Framebuffer.*` | Color attachment + depth/stencil renderbuffer, supports RGB8 / sRGB8 / RGBA16F |
@@ -100,7 +102,10 @@ Class-OpenGL-ES/
 │   └── stb/               # stb_image / stb_easy_font
 ├── glfw/                  # optional: local GLFW sources (gitignored)
 ├── glm/                   # optional: local glm sources (gitignored)
-└── docs/images/           # README screenshots
+├── tests/                 # headless unit tests (CTest)
+├── scripts/               # coverage and docs link checks
+├── docs/                  # screenshots and GitHub Pages landing page
+└── .github/               # CI, CodeQL, Dependabot, issue and PR templates
 ```
 
 ## Build
@@ -122,6 +127,7 @@ sudo apt install build-essential cmake \
 cd Class-OpenGL-ES
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j
+ctest --test-dir build --output-on-failure
 ```
 
 Release build (GLCall checks disabled):
@@ -133,6 +139,9 @@ cmake --build build-release -j
 
 The asset directory is provided through the compile definition `ASSET_DIR`, which points at the
 project's `assets/`, so the executable does not need to be copied.
+
+The project also compiles on macOS, where the headless unit tests run; GLFW cannot create an
+OpenGL ES context on macOS, so the examples require Linux with EGL.
 
 ### Running
 
@@ -241,7 +250,8 @@ light, point lights and diffuse maps.
 
 ### Model Import
 
-`Model` parses the `v` / `vt` / `vn` / `f` of a Wavefront OBJ:
+`ObjLoader` parses the `v` / `vt` / `vn` / `f` of a Wavefront OBJ without touching
+OpenGL, so the importer is covered by headless unit tests; `Model` loads through it:
 
 - Polygons are triangulated as fans
 - Negative indices are supported
@@ -368,30 +378,29 @@ textures:
 - [x] The scene FBO / ping-pong FBOs / shadow FBO are correctly rebuilt when the size changes (`Resize` callback)
 - [x] Backend switching logs the old backend's statistics and re-initializes the new backend
 - [x] Full Debug build (`-Wall -Wextra`) produces zero warnings for both engine and examples
-- [x] Examples 01–13 all launch, run and respond to keys on macOS, with no GL errors and no "Uniform not found"
+- [x] Examples 01–13 all build and launch on Ubuntu 22.04 + Mesa llvmpipe (OpenGL ES 3.2), with no GL errors and no "Uniform not found"
 - [x] After the final output pass was added to 08/09/10, the look is restored; 11/12 are unchanged code with unchanged behavior
-- [x] 13's thin-shell petals, shadows, color switching and turntable work correctly on Apple M4
+- [x] 13's thin-shell petals, shadows, color switching and turntable work correctly under Mesa llvmpipe
+- [x] `camera_tests` and `obj_loader_tests` pass through CTest on Linux and macOS without creating a GL context
 
 ## Verification Log
 
-- **macOS (Apple M4, OpenGL 4.1 Metal, MSAA 4x)**: 01–13 were run item by item during final acceptance.
-  01/02/04 render correctly with correct textures; 03's cube rotation and camera roaming are normal; 05's lighting/materials/point lights match the state before stage 11;
-  06's text overlay shows FPS/resolution/MSAA/backend; 07 was used to verify the `OpenGL → Null → OpenGL` switch and statistics with simulated keys;
-  all of 08's 1–6 effect switches take effect, and the default passthrough brightness is normal; 09's `[` `]` bias and F6 PCF take effect,
-  and the black-and-white checkerboard contrast is restored; 10's skybox is seamless, and reflection/refraction and post-processing keys work, with sky brightness and gray-blue/warm
-  layering restored (matching the stage-10 acceptance screenshots); 11's F8 HDR/LDR, F9 Bloom and 1–6 post-processing are normal;
-  12's sphere grid, multiple lights and L/F6/F7/F8/F9 are all normal; 13's rose rendering, 1–4 color switching and
-  SPACE turntable are normal. No `GL_INVALID_*` aborts and no "Uniform not found" warnings occurred during any run.
-- **Ubuntu 22.04.5 (GCC 11.4.0, Xwayland + Mesa 23.2.1 llvmpipe / LLVM 15.0.7,
-  OpenGL 4.5 Core, MSAA 4x)**: final acceptance was re-run on the actual machine; 01–12 all pass the Debug build and were launched
-  one by one, with no `GL_INVALID_*` aborts and no "Uniform not found" in the logs; 01–07 reuse the visual verification from
-  earlier stages, while 08–12 were each screenshotted and checked this time: 08's default passthrough cube, 09's high-contrast black-and-white checkerboard + projection, 10's skybox
-  + torus environment reflection, 11's HDR/Bloom, 12's PBR metal/roughness sphere grid with multiple lights — all consistent with macOS.
-  The key paths were verified item by item on macOS; xdotool is not installed on Ubuntu, so no key injection was performed.
-  During the build, GCC rejected a member with the same name as its type (`EffectEntry::Shader`), so the member was renamed to
-  `Program` (a pure rename, no behavior change); after the change, macOS was rebuilt and 08/10/11/12 re-ran successfully.
-  Note: GLFW 3.4 creates a native Wayland window by default in a Wayland session; for screenshots,
-  `WAYLAND_DISPLAY=wayland-missing` was used to force X11/Xwayland so that `xwininfo` / `xwd` could locate the window.
+- **Ubuntu 22.04.5 (GCC 11.4.0, ThinkCentre, Xwayland + Mesa 23.2.1 llvmpipe / LLVM 15.0.7,
+  `GL_VERSION = OpenGL ES 3.2 Mesa 23.2.1`, 4x MSAA from the EGL config)**: 01–13 all build in
+  the Debug configuration and were launched one by one; no `GL_INVALID_*` abort and no
+  "Uniform not found" appeared in the logs. 01–07 reuse the visual verification from earlier
+  stages, while 08–12 were each screenshotted and checked: 08's default passthrough cube,
+  09's high-contrast black-and-white checkerboard + projection, 10's seamless skybox + torus
+  environment reflection, 11's HDR/Bloom, 12's PBR metal/roughness sphere grid with multiple
+  lights — all consistent with the reference renders. xdotool is not installed on Ubuntu, so
+  no key injection was performed; the key paths were verified interactively.
+  During the build, GCC rejected a member with the same name as its type
+  (`EffectEntry::Shader`), so the member was renamed to `Program` (a pure rename, no behavior
+  change). Note: GLFW 3.4 creates a native Wayland window by default in a Wayland session;
+  for screenshots, `WAYLAND_DISPLAY=wayland-missing` was used to force X11/Xwayland so that
+  `xwininfo` / `xwd` could locate the window.
+- **Headless tests**: `camera_tests` (8 cases) and `obj_loader_tests` (20 cases) pass under
+  `ctest` on Ubuntu 22.04 and macOS, without creating a GL context.
 
 ## Explicitly Not Implemented
 
@@ -420,6 +429,12 @@ textures:
 
 The project uses third-party libraries such as GLFW, glm, glad and stb; each library's license is
 in its source directory or file header.
+
+## Contributing
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) for the build,
+test and code conventions, and use [SECURITY.md](SECURITY.md) for vulnerability
+reports. User-visible changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

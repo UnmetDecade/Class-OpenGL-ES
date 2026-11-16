@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Class-OpenGL-ES — 现代 OpenGL ES C++ 封装引擎</title>
+  <meta name="description" content="使用 C++17 与 OpenGL ES 3.0 的渲染引擎，所有 GL 资源采用 RAII 管理，带无窗口测试与 13 个独立示例。">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #faf9f7;
+      --surface: #ffffff;
+      --text: #1f2328;
+      --muted: #5c6570;
+      --border: #e3e0da;
+      --accent: #b23a5a;
+      --accent-soft: #f4e3e8;
+      --code: #f1efeb;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14161a;
+        --surface: #1c1f25;
+        --text: #e8e6e1;
+        --muted: #a2a9b4;
+        --border: #2e333b;
+        --accent: #e07a94;
+        --accent-soft: #332027;
+        --code: #22262d;
+      }
+    }
+
+    html[data-theme="light"] {
+      --bg: #faf9f7;
+      --surface: #ffffff;
+      --text: #1f2328;
+      --muted: #5c6570;
+      --border: #e3e0da;
+      --accent: #b23a5a;
+      --accent-soft: #f4e3e8;
+      --code: #f1efeb;
+    }
+
+    html[data-theme="dark"] {
+      --bg: #14161a;
+      --surface: #1c1f25;
+      --text: #e8e6e1;
+      --muted: #a2a9b4;
+      --border: #2e333b;
+      --accent: #e07a94;
+      --accent-soft: #332027;
+      --code: #22262d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    header.site {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand { font-weight: 700; letter-spacing: -0.01em; font-size: 18px; color: var(--text); }
+    .brand span { color: var(--accent); }
+
+    nav.site { display: flex; flex-wrap: wrap; gap: 18px; font-size: 14px; }
+    nav.site a { color: var(--muted); }
+    nav.site a:hover { color: var(--accent); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 40px;
+      align-items: center;
+      padding: 64px 0 48px;
+    }
+
+    .hero h1 {
+      margin: 0 0 12px;
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    .hero p { margin: 0 0 24px; color: var(--muted); font-size: 18px; max-width: 34em; }
+
+    .tag {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .buttons { display: flex; flex-wrap: wrap; gap: 12px; }
+
+    .button {
+      display: inline-block;
+      padding: 10px 18px;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .button.primary { background: var(--accent); color: #fff; }
+    .button.primary:hover { text-decoration: none; opacity: 0.9; }
+    .button.ghost:hover { text-decoration: none; background: var(--accent-soft); }
+
+    .hero-art {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .hero-art img { display: block; width: 100%; height: auto; }
+
+    section { padding: 44px 0; border-top: 1px solid var(--border); }
+    section h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.01em; }
+    section > .wrap > p.lead { margin: 0 0 26px; color: var(--muted); }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .feature h3 { margin: 0 0 6px; font-size: 16px; }
+    .feature p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    figure {
+      margin: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    figure img { display: block; width: 100%; height: auto; border-bottom: 1px solid var(--border); }
+    figcaption { padding: 10px 14px; font-size: 14px; color: var(--muted); }
+    figcaption strong { color: var(--text); font-weight: 600; }
+
+    pre {
+      margin: 0;
+      padding: 18px 20px;
+      overflow-x: auto;
+      background: var(--code);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font: 14px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    code { font: inherit; }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+    .split h3 { margin-top: 0; }
+
+    footer.site {
+      padding: 32px 0 48px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    @media (max-width: 760px) {
+      .hero, .split { grid-template-columns: 1fr; }
+      .hero { padding-top: 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="site">
+      <span class="brand">Class<span>-</span>OpenGL<span>-</span>ES</span>
+      <nav class="site">
+        <a href="index.html" hreflang="en" lang="en">English</a>
+        <a href="https://github.com/UnmetDecade/Class-OpenGL-ES">GitHub</a>
+        <a href="https://github.com/UnmetDecade/Class-OpenGL-ES/blob/main/README.zh-CN.md">README</a>
+        <a href="https://github.com/UnmetDecade/Class-OpenGL-ES/blob/main/ARCHITECTURE.zh-CN.md">架构约定</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <span class="tag">C++17 · OpenGL ES 3.0</span>
+        <h1>把桌面版引擎移植到 OpenGL ES。</h1>
+        <p>
+          每个 GL 资源都有 RAII 封装，每次 GL 调用都经过 <code>GLCall</code> 检查，
+          13 个示例各自只讲一种渲染技术，现在通过 EGL 运行在 GLSL ES 3.00 上。
+        </p>
+        <div class="buttons">
+          <a class="button primary" href="https://github.com/UnmetDecade/Class-OpenGL-ES/blob/main/README.zh-CN.md#构建">开始构建</a>
+          <a class="button ghost" href="#examples">浏览示例</a>
+        </div>
+      </div>
+      <div class="hero-art">
+        <img src="images/13_rose.png" alt="使用本引擎渲染的程序化玫瑰，黄金角螺旋花瓣与 ACES 色调映射" width="1280" height="720">
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap" style="padding: 0;">
+        <h2>引擎内容</h2>
+        <p class="lead">与桌面版一样的所有权模型，以及让它跑在 ES 上的移植改动。</p>
+        <div class="features">
+          <div class="feature">
+            <h3>全面 RAII</h3>
+            <p>program、buffer、VAO、texture、cubemap、framebuffer 都由析构函数释放；禁止拷贝，允许移动。</p>
+          </div>
+          <div class="feature">
+            <h3>调用检查</h3>
+            <p>所有 GL 调用都经过 <code>GLCall</code>，Debug 构建下出错会打印 <code>file:line call error code</code> 并立即中断。</p>
+          </div>
+          <div class="feature">
+            <h3>GLSL ES 3.00</h3>
+            <p>桌面写法的 shader 源码在编译前自动改写为 <code>#version 300 es</code> 并注入精度限定符。</p>
+          </div>
+          <div class="feature">
+            <h3>双后端</h3>
+            <p>运行时可切换真实 OpenGL ES 后端与无窗口 Null 后端，并统计每帧绘制数据。</p>
+          </div>
+          <div class="feature">
+            <h3>13 个示例</h3>
+            <p>从硬编码三角形到程序化玫瑰，每个示例只增加一种能力，不重写前面的代码。</p>
+          </div>
+          <div class="feature">
+            <h3>无窗口测试</h3>
+            <p>相机数学与 OBJ 解析可在没有 GL 上下文的情况下做单元测试，CI 强制执行覆盖率门槛。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="examples">
+      <div class="wrap" style="padding: 0;">
+        <h2>示例截图</h2>
+        <p class="lead">参考渲染；ES 移植版已在 Ubuntu 22.04 + Mesa llvmpipe 上复现，MSAA 4× 由 EGL 配置决定。</p>
+        <div class="gallery">
+          <figure>
+            <img src="images/03_cube.png" alt="带深度测试的纹理立方体" width="1280" height="720">
+            <figcaption><strong>03_cube</strong> — 纹理立方体、深度测试、自由相机</figcaption>
+          </figure>
+          <figure>
+            <img src="images/09_shadow.png" alt="方向光阴影贴图与 PCF 软阴影" width="1280" height="720">
+            <figcaption><strong>09_shadow</strong> — 方向光阴影贴图与 PCF</figcaption>
+          </figure>
+          <figure>
+            <img src="images/10_skybox.png" alt="立方体贴图天空盒与环境反射" width="1280" height="720">
+            <figcaption><strong>10_skybox</strong> — 天空盒与环境反射</figcaption>
+          </figure>
+          <figure>
+            <img src="images/11_hdr.png" alt="HDR 场景与 Bloom 辉光" width="1280" height="720">
+            <figcaption><strong>11_hdr</strong> — RGBA16F 场景、Reinhard 色调映射、Bloom</figcaption>
+          </figure>
+          <figure>
+            <img src="images/12_pbr.png" alt="金属度与粗糙度球阵" width="1280" height="720">
+            <figcaption><strong>12_pbr</strong> — Cook-Torrance PBR 球阵</figcaption>
+          </figure>
+          <figure>
+            <img src="images/13_rose.png" alt="带刺、叶子和花瓣的程序化玫瑰" width="1280" height="720">
+            <figcaption><strong>13_rose</strong> — 程序化玫瑰、阴影与 ACES 色调映射</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="build">
+      <div class="wrap" style="padding: 0;">
+        <h2>四条命令完成构建</h2>
+        <p class="lead">需要 CMake ≥ 3.16 与支持 C++17 的编译器；GLFW 和 glm 会自动拉取。</p>
+        <div class="split">
+          <div>
+            <h3>构建、测试并运行</h3>
+            <pre><code>git clone https://github.com/UnmetDecade/Class-OpenGL-ES.git
+cd Class-OpenGL-ES
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+./build/13_rose</code></pre>
+          </div>
+          <div>
+            <h3>平台说明</h3>
+            <p style="color: var(--muted); margin-top: 0;">
+              示例需要在带 EGL 的 Linux 上运行：先安装 <code>xorg-dev</code>、
+              <code>libgl1-mesa-dev</code>、<code>libegl1-mesa-dev</code> 与
+              <code>libgles2-mesa-dev</code>。macOS 可以构建项目并运行无窗口测试，
+              但 GLFW 在 macOS 上无法创建 OpenGL ES 上下文。
+            </p>
+            <p style="color: var(--muted);">
+              文档：<a href="https://github.com/UnmetDecade/Class-OpenGL-ES/blob/main/README.zh-CN.md">README</a>、
+              <a href="https://github.com/UnmetDecade/Class-OpenGL-ES/blob/main/ARCHITECTURE.zh-CN.md">架构约定</a>、
+              <a href="https://github.com/UnmetDecade/Class-OpenGL-ES/blob/main/CHANGELOG.zh-CN.md">更新日志</a>。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site">
+      <span>MIT 许可 · 使用 C++17 与 OpenGL ES 3.0 构建</span>
+      <span>
+        <a href="index.html" hreflang="en" lang="en">English</a> ·
+        <a href="https://github.com/UnmetDecade/Class-OpenGL-ES">源码</a>
+      </span>
+    </footer>
+  </div>
+</body>
+</html>

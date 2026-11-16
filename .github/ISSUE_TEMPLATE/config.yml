@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/UnmetDecade/Class-OpenGL#readme
+    about: Build instructions, the example table and engine architecture.
+  - name: Security policy
+    url: https://github.com/UnmetDecade/Class-OpenGL/security/policy
+    about: Please report vulnerabilities privately instead of opening an issue.
